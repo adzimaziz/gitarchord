@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14161c">
+  <meta name="description" content="Chord gitar dengan auto scroll, transpose dan simpanan offline.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>GitarChord</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- LIBRARY -->
+  <section id="view-library" class="view">
+    <header class="topbar">
+      <h1>🎸 GitarChord</h1>
+      <button id="btn-install" class="btn ghost" hidden>⬇ Install</button>
+    </header>
+    <div class="pad">
+      <input id="search" class="input" type="search" placeholder="Cari lagu / artis…">
+      <ul id="song-list" class="song-list"></ul>
+      <p id="empty" class="muted" hidden>Belum ada lagu. Tekan <b>＋</b> untuk tambah.</p>
+      <div class="row gap">
+        <button id="btn-export" class="btn ghost small">Export</button>
+        <label class="btn ghost small">Import<input id="file-import" type="file" accept="application/json" hidden></label>
+      </div>
+    </div>
+    <button id="btn-add" class="fab" aria-label="Tambah lagu">＋</button>
+  </section>
+
+  <!-- EDITOR -->
+  <section id="view-editor" class="view" hidden>
+    <header class="topbar">
+      <button class="btn ghost" data-back>‹ Batal</button>
+      <h2 id="editor-title">Lagu baru</h2>
+      <button id="btn-save" class="btn primary">Simpan</button>
+    </header>
+    <div class="pad form">
+      <input id="f-title" class="input" placeholder="Tajuk lagu" required>
+      <input id="f-artist" class="input" placeholder="Artis">
+      <input id="f-url" class="input" type="url" placeholder="Link sumber (cth. Ultimate Guitar) – pilihan">
+      <p class="muted small">
+        Buka lagu di Ultimate Guitar (atau mana-mana laman chord), pilih semua teks chord &amp; lirik,
+        salin dan tampal di bawah. Format <code>[ch]Am[/ch]</code> dan <code>[tab]</code> juga disokong.
+      </p>
+      <textarea id="f-body" class="input mono" rows="18" placeholder="[Intro]
+Am  F  C  G
+
+[Verse]
+Am            F
+Lirik baris pertama…"></textarea>
+      <button id="btn-delete" class="btn danger" hidden>Padam lagu</button>
+    </div>
+  </section>
+
+  <!-- PLAYER -->
+  <section id="view-player" class="view" hidden>
+    <header class="topbar player-top">
+      <button class="btn ghost" data-back>‹</button>
+      <div class="song-head">
+        <div id="p-title" class="p-title"></div>
+        <div id="p-artist" class="muted small"></div>
+      </div>
+      <a id="p-source" class="btn ghost small" target="_blank" rel="noopener" hidden>Sumber</a>
+      <button id="btn-edit" class="btn ghost small">Edit</button>
+    </header>
+    <main id="sheet" class="sheet mono"></main>
+    <div id="countdown" class="countdown" hidden></div>
+
+    <footer class="controls">
+      <div class="ctl-group">
+        <button id="btn-top" class="btn icon" title="Ke atas">⤒</button>
+        <button id="btn-play" class="btn play" title="Main / Henti (Space)">▶</button>
+      </div>
+      <div class="ctl-group speed">
+        <button id="speed-dn" class="btn icon">−</button>
+        <div class="speed-box"><span class="muted tiny">Laju</span><b id="speed-val">5</b></div>
+        <button id="speed-up" class="btn icon">＋</button>
+      </div>
+      <div class="ctl-group">
+        <button id="tr-dn" class="btn icon">♭</button>
+        <div class="speed-box"><span class="muted tiny">Key</span><b id="tr-val">0</b></div>
+        <button id="tr-up" class="btn icon">♯</button>
+      </div>
+      <div class="ctl-group">
+        <button id="fs-dn" class="btn icon">A−</button>
+        <button id="fs-up" class="btn icon">A＋</button>
+      </div>
+    </footer>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
