@@ -23,7 +23,6 @@ PWA ringkas untuk main gitar dengan **auto scroll** chord & lirik. Boleh di-inst
 Papan kekunci: `Space` main/henti · `↑ ↓` laju · `← →` transpose · `Home` ke atas.
 
 ## Hosting (GitHub Pages)
-Workflow `.github/workflows/pages.yml` deploy bila push ke `main`.
-Pastikan **Settings → Pages → Source = GitHub Actions**. PWA perlukan HTTPS (Pages sudah HTTPS).
+Pages diset ke **Settings → Pages → Deploy from a branch → `main` / root**. Setiap push ke `main` akan deploy automatik.
 
 Uji lokal: `python3 -m http.server` lalu buka `http://localhost:8000`.
