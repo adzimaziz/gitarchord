@@ -117,24 +117,77 @@ function normalizeBody(txt) {
     .replace(/\[\/?tab\]/g, '').replace(/^\s*\n/, '');
 }
 
-function renderSheet(body, st) {
-  const lines = normalizeBody(body).split('\n');
-  return lines.map(raw => {
-    // inline [ch]X[/ch] tags inside lyric lines
+/* Parse body into typed lines: {t:'chord'|'lyric'|'section'|'tab'|'blank', s:text} */
+function parseSheet(body, st) {
+  const out = [];
+  for (const raw of normalizeBody(body).split('\n')) {
     if (/\[ch\]/.test(raw)) {
       const plain = raw.replace(/\[\/?ch\]/g, '');
-      if (classifyLine(plain) === 'chord') return `<div class="ln chord-ln">${esc(transposeLine(plain, st))}</div>`;
-      return `<div class="ln">${esc(raw).replace(/\[ch\](.*?)\[\/ch\]/g, (m, c) => `<span class="ch">${esc(transposeToken(c, st))}</span>`)}</div>`;
+      if (classifyLine(plain) === 'chord') { out.push({ t: 'chord', s: transposeLine(plain, st) }); continue; }
+      // inline chords inside a lyric line -> chord line above lyric line
+      let lyric = '', chords = '';
+      raw.split(/\[ch\](.*?)\[\/ch\]/).forEach((part, i) => {
+        if (i % 2) {
+          const c = transposeToken(part, st);
+          if (chords.length > lyric.length) lyric += ' '.repeat(chords.length - lyric.length);
+          chords = chords.padEnd(lyric.length) + c + ' ';
+        } else lyric += part;
+      });
+      out.push({ t: 'chord', s: chords.trimEnd() }, { t: 'lyric', s: lyric });
+      continue;
     }
-    const type = classifyLine(raw);
-    switch (type) {
-      case 'blank': return '<div class="ln"></div>';
-      case 'section': return `<div class="ln sec">${esc(raw.trim())}</div>`;
-      case 'chord': return `<div class="ln chord-ln">${esc(transposeLine(raw, st))}</div>`;
-      case 'tab': return `<div class="ln tab">${esc(raw)}</div>`;
-      default: return `<div class="ln">${esc(raw)}</div>`;
-    }
-  }).join('');
+    const t = classifyLine(raw);
+    out.push({ t, s: t === 'section' ? raw.trim() : t === 'chord' ? transposeLine(raw, st) : raw.trimEnd() });
+  }
+  return out;
+}
+
+/* Break point <= cols: at a space in the lyric, never through a chord name */
+function breakAt(lyric, chord, cols) {
+  let b = cols;
+  if (lyric.length > cols) {
+    const sp = lyric.lastIndexOf(' ', cols);
+    if (sp > cols * 0.4) b = sp + 1;
+  } else if (chord.length > cols) {
+    const sp = chord.lastIndexOf(' ', cols);
+    if (sp > 0) b = sp + 1;
+  }
+  // move left if we would cut a chord token in half
+  while (b > 1 && chord[b - 1] && chord[b - 1] !== ' ' && chord[b] && chord[b] !== ' ') b--;
+  return Math.max(1, b);
+}
+
+/* Wrap long lines to fit `cols` characters, keeping chords above the right syllable */
+function wrapLines(lines, cols) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i], next = lines[i + 1];
+    if (L.t === 'chord' && next && next.t === 'lyric') {
+      let c = L.s, l = next.s; i++;
+      while (Math.max(c.length, l.length) > cols) {
+        const b = breakAt(l, c, cols);
+        out.push({ t: 'chord', s: c.slice(0, b).trimEnd() }, { t: 'lyric', s: l.slice(0, b).trimEnd() });
+        c = c.slice(b); l = l.slice(b);
+        const k = Math.min(l.length - l.trimStart().length, c.length - c.trimStart().length);
+        c = c.slice(k); l = l.slice(k);
+      }
+      out.push({ t: 'chord', s: c }, { t: 'lyric', s: l });
+    } else if ((L.t === 'lyric' || L.t === 'chord') && L.s.length > cols) {
+      let s = L.s;
+      while (s.length > cols) {
+        const b = L.t === 'chord' ? breakAt('', s, cols) : breakAt(s, '', cols);
+        out.push({ t: L.t, s: s.slice(0, b).trimEnd() });
+        s = s.slice(b).trimStart();
+      }
+      out.push({ t: L.t, s });
+    } else out.push(L);
+  }
+  return out;
+}
+
+const CLS = { chord: 'ln chord-ln', section: 'ln sec', tab: 'ln tab', lyric: 'ln', blank: 'ln' };
+function linesToHtml(lines) {
+  return lines.map(l => `<div class="${CLS[l.t]}">${esc(l.s)}</div>`).join('');
 }
 
 /* ---------------- routing ---------------- */
@@ -248,10 +301,34 @@ function openPlayer(song) {
   updatePlayerUI(); renderCurrent();
   requestWake();
 }
-function renderCurrent() {
-  document.documentElement.style.setProperty('--fs', current.fs + 'px');
-  $('#sheet').innerHTML = renderSheet(current.body, current.transpose);
+/* Fit text to screen width: shrink font a little (max 15%), then wrap remaining long lines */
+let effFs = 17, charRatio = 0;
+function measureCharRatio() {
+  const m = document.createElement('span');
+  m.className = 'mono'; m.style.cssText = 'position:absolute;visibility:hidden;font-size:100px;font-weight:700;white-space:pre';
+  m.textContent = '0'.repeat(20);
+  document.body.appendChild(m); const r = m.getBoundingClientRect().width / 2000; m.remove();
+  return r || 0.6;
 }
+function renderCurrent() {
+  const sheet = $('#sheet');
+  if (!charRatio) charRatio = measureCharRatio();
+  const cs = getComputedStyle(sheet);
+  const avail = sheet.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+  const lines = parseSheet(current.body, current.transpose);
+  const longest = lines.reduce((m, l) => l.t === 'tab' ? m : Math.max(m, l.s.length), 1);
+  const fitFs = Math.floor(avail / (longest * charRatio));
+  effFs = Math.max(Math.round(current.fs * 0.85), Math.min(current.fs, fitFs));
+  const cols = Math.max(10, Math.floor(avail / (effFs * charRatio)));
+  document.documentElement.style.setProperty('--fs', effFs + 'px');
+  sheet.innerHTML = linesToHtml(wrapLines(lines, cols));
+}
+let resizeT = 0;
+window.addEventListener('resize', () => {
+  if (views.player.hidden || !current) return;
+  clearTimeout(resizeT); resizeT = setTimeout(renderCurrent, 150);
+});
+if (document.fonts) document.fonts.ready.then(() => { charRatio = 0; if (current && !views.player.hidden) renderCurrent(); });
 function updatePlayerUI() {
   $('#speed-val').textContent = current.speed;
   $('#tr-val').textContent = (current.transpose > 0 ? '+' : '') + current.transpose;
@@ -284,7 +361,7 @@ $('#sheet').addEventListener('click', e => {
 
 /* ---------------- auto scroll engine ---------------- */
 let playing = false, raf = 0, last = 0, pos = 0, countdownTimer = 0;
-const pxPerSec = () => current.speed * 3 * (current.fs / 17);
+const pxPerSec = () => current.speed * 3 * (effFs / 17);
 
 function toggleScroll() { playing || countdownTimer ? stopScroll() : startScroll(); }
 

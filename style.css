@@ -45,6 +45,7 @@ code { background: var(--panel); padding: 1px 4px; border-radius: 4px; }
   border-radius: 10px; padding: 11px 12px; font-size: 16px; }
 .input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 textarea.input { font-size: 14px; line-height: 1.45; resize: vertical; white-space: pre; overflow-x: auto; }
+.sheet::-webkit-scrollbar { display: none; }
 .form { display: flex; flex-direction: column; gap: 10px; }
 .form p { margin: 2px 0; }
 
@@ -64,6 +65,7 @@ textarea.input { font-size: 14px; line-height: 1.45; resize: vertical; white-spa
 .p-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sheet { font-size: var(--fs); line-height: 1.5; padding: 18px 16px 70vh; max-width: 900px; margin: 0 auto;
   white-space: pre; overflow-x: auto; }
+.sheet::-webkit-scrollbar { display: none; }
 .sheet .ln { min-height: 1.5em; }
 .sheet .chord-ln { color: var(--chord); font-weight: 700; }
 .sheet .sec { color: var(--section); font-weight: 700; margin-top: .6em; }
